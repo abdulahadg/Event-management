@@ -1,0 +1,6 @@
+{
+  "name": "Aura Luxury Events",
+  "description": "Award-winning global event management agency based in the UK, designing and executing extraordinary corporate events, luxury weddings, and high-end celebrations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
