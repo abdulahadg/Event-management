@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, CheckCircle2, Instagram, Linkedin, Twitter, Globe, Compass } from 'lucide-react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient, isSupabaseConfigured } from '@/utils/supabase/client';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -27,9 +27,20 @@ export default function Contact() {
     setErrorMessage('');
     setIsSubmitting(true);
 
+    const timestamp = new Date().toISOString();
+
+    if (!isSupabaseConfigured()) {
+      setIsSubmitting(false);
+      // Save to localStorage as history fallback
+      const inquiries = JSON.parse(localStorage.getItem('aura_general_inquiries') || '[]');
+      localStorage.setItem('aura_general_inquiries', JSON.stringify([...inquiries, { ...formData, timestamp }]));
+
+      setErrorMessage('Database credentials are not configured. Please define NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in your environment variables/secrets via the settings menu. (A fallback local reservation was successfully saved to your browser history).');
+      return;
+    }
+
     try {
       const supabase = createClient();
-      const timestamp = new Date().toISOString();
 
       // Try to insert the form data into the 'inquiries' table
       const { error } = await supabase.from('inquiries').insert([
@@ -57,7 +68,7 @@ export default function Contact() {
     } catch (err) {
       console.error('Supabase contact submission failed:', err);
       setIsSubmitting(false);
-      setErrorMessage('Could not connect to the intake gateway. Please verify your connection.');
+      setErrorMessage('Could not connect to the intake gateway database. Please check your Supabase connection parameters and make sure the table schema matches.');
     }
   };
 

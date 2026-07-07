@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient, isSupabaseConfigured } from '@/utils/supabase/client';
 import {
   ArrowLeft,
   Calendar,
@@ -65,9 +65,23 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
     e.preventDefault();
     setErrorMessage('');
     setIsSubmitting(true);
+    const timestamp = new Date().toISOString();
+
+    if (!isSupabaseConfigured()) {
+      setIsSubmitting(false);
+      // Save locally
+      const currentInquiries = JSON.parse(localStorage.getItem('aura_custom_inquiries') || '[]');
+      localStorage.setItem('aura_custom_inquiries', JSON.stringify([
+        ...currentInquiries,
+        { ...formFields, itemId, viewType, category, timestamp }
+      ]));
+
+      setErrorMessage('Database credentials are not configured. Please define NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in your environment variables/secrets via the settings menu. (A fallback local reservation was successfully saved to your browser history).');
+      return;
+    }
+
     try {
       const supabase = createClient();
-      const timestamp = new Date().toISOString();
 
       // Try inserting into Supabase
       const { error } = await supabase.from('inquiries').insert([
@@ -96,7 +110,7 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
     } catch (err) {
       console.error('Supabase custom inquiry submission failed:', err);
       setIsSubmitting(false);
-      setErrorMessage('Could not connect to the intake gateway. Please verify your connection.');
+      setErrorMessage('Could not connect to the intake gateway database. Please check your Supabase connection parameters and make sure the table schema matches.');
     }
   };
 
@@ -104,9 +118,23 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
     e.preventDefault();
     setErrorMessage('');
     setIsSubmitting(true);
+    const timestamp = new Date().toISOString();
+
+    if (!isSupabaseConfigured()) {
+      setIsSubmitting(false);
+      // Save locally
+      const currentRegistrations = JSON.parse(localStorage.getItem('aura_event_registrations') || '[]');
+      localStorage.setItem('aura_event_registrations', JSON.stringify([
+        ...currentRegistrations,
+        { ...formFields, ticketType, eventId: itemId, eventTitle, timestamp }
+      ]));
+
+      setErrorMessage('Database credentials are not configured. Please define NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in your environment variables/secrets via the settings menu. (A fallback local reservation was successfully saved to your browser history).');
+      return;
+    }
+
     try {
       const supabase = createClient();
-      const timestamp = new Date().toISOString();
 
       // Try inserting into Supabase
       const { error } = await supabase.from('inquiries').insert([
@@ -135,7 +163,7 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
     } catch (err) {
       console.error('Supabase event registration failed:', err);
       setIsSubmitting(false);
-      setErrorMessage('Could not connect to the intake gateway. Please verify your connection.');
+      setErrorMessage('Could not connect to the intake gateway database. Please check your Supabase connection parameters and make sure the table schema matches.');
     }
   };
 

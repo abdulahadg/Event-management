@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { createClient } from '@/utils/supabase/client';
+import { createClient, isSupabaseConfigured } from '@/utils/supabase/client';
 import {
   ArrowLeft,
   Calendar,
@@ -142,6 +142,17 @@ export default function ConsultationPage({
       timestamp
     };
 
+    // Check if Supabase keys are present
+    if (!isSupabaseConfigured()) {
+      setIsSubmitting(false);
+      // Save locally so no user input is lost!
+      const existing = JSON.parse(localStorage.getItem('aura_consultation_requests') || '[]');
+      localStorage.setItem('aura_consultation_requests', JSON.stringify([...existing, inquiry]));
+      
+      setErrorMessage('Database credentials are not configured. Please define NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY in your environment variables/secrets via the settings menu. (A fallback local reservation was successfully saved to your browser history).');
+      return;
+    }
+
     try {
       const supabase = createClient();
       
@@ -175,7 +186,7 @@ export default function ConsultationPage({
     } catch (err) {
       console.error('Supabase intake gateway submission failed:', err);
       setIsSubmitting(false);
-      setErrorMessage('Could not connect to the intake gateway. Please verify your connection.');
+      setErrorMessage('Could not connect to the intake gateway database. Please check your Supabase connection parameters and make sure the table schema matches.');
     }
   };
 
