@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { createClient } from '@/utils/supabase/client';
 import {
   ArrowLeft,
   Calendar,
@@ -112,7 +113,7 @@ export default function ConsultationPage({
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName || !clientEmail || !clientPhone) {
       setErrorMessage('Please fill out all required contact fields.');
@@ -120,30 +121,62 @@ export default function ConsultationPage({
     }
     setErrorMessage('');
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSubmitted(true);
+
+    const inquiryId = 'CON-' + Math.floor(100000 + Math.random() * 900000);
+    const timestamp = new Date().toISOString();
+
+    const inquiry = {
+      id: inquiryId,
+      eventType,
+      preselectedPackage,
+      guestCount,
+      destination,
+      eventDate,
+      clientName,
+      clientEmail,
+      clientPhone,
+      specialRequests,
+      estimate: estimate.total,
+      rawEstimate: estimate.rawTotal,
+      status: 'Pending',
+      timestamp
+    };
+
+    try {
+      const supabase = createClient();
       
-      const inquiry = {
-        id: 'CON-' + Math.floor(100000 + Math.random() * 900000),
-        eventType,
-        preselectedPackage,
-        guestCount,
-        destination,
-        eventDate,
-        clientName,
-        clientEmail,
-        clientPhone,
-        specialRequests,
-        estimate: estimate.total,
-        rawEstimate: estimate.rawTotal,
-        status: 'Pending',
-        timestamp: new Date().toISOString()
-      };
-      
+      // Try to insert the inquiry into the 'inquiries' table.
+      const { error } = await supabase.from('inquiries').insert([
+        {
+          id: inquiryId,
+          name: clientName,
+          email: clientEmail,
+          phone: clientPhone,
+          event_type: eventType,
+          guests: guestCount,
+          destination,
+          event_date: eventDate,
+          details: specialRequests,
+          estimate: estimate.total,
+          timestamp
+        }
+      ]);
+
+      if (error) {
+        throw error;
+      }
+
+      // Also save to localStorage as local history
       const existing = JSON.parse(localStorage.getItem('aura_consultation_requests') || '[]');
       localStorage.setItem('aura_consultation_requests', JSON.stringify([...existing, inquiry]));
-    }, 1200);
+
+      setIsSubmitting(false);
+      setIsSubmitted(true);
+    } catch (err) {
+      console.error('Supabase intake gateway submission failed:', err);
+      setIsSubmitting(false);
+      setErrorMessage('Could not connect to the intake gateway. Please verify your connection.');
+    }
   };
 
   const handleReset = () => {

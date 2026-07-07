@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Send, CheckCircle2, Instagram, Linkedin, Twitter, Globe, Compass } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -12,6 +13,7 @@ export default function Contact() {
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -20,15 +22,43 @@ export default function Contact() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
     setIsSubmitting(true);
-    setTimeout(() => {
+
+    try {
+      const supabase = createClient();
+      const timestamp = new Date().toISOString();
+
+      // Try to insert the form data into the 'inquiries' table
+      const { error } = await supabase.from('inquiries').insert([
+        {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          event_type: formData.category,
+          guests: Number(formData.guests),
+          details: formData.details,
+          timestamp
+        }
+      ]);
+
+      if (error) {
+        throw error;
+      }
+
+      // Save to localStorage as history
+      const inquiries = JSON.parse(localStorage.getItem('aura_general_inquiries') || '[]');
+      localStorage.setItem('aura_general_inquiries', JSON.stringify([...inquiries, { ...formData, timestamp }]));
+
       setIsSubmitting(false);
       setIsSubmitted(true);
-      const inquiries = JSON.parse(localStorage.getItem('aura_general_inquiries') || '[]');
-      localStorage.setItem('aura_general_inquiries', JSON.stringify([...inquiries, { ...formData, timestamp: new Date().toISOString() }]));
-    }, 1200);
+    } catch (err) {
+      console.error('Supabase contact submission failed:', err);
+      setIsSubmitting(false);
+      setErrorMessage('Could not connect to the intake gateway. Please verify your connection.');
+    }
   };
 
   return (
@@ -143,6 +173,13 @@ export default function Contact() {
                   <h3 className="text-2xl font-serif font-medium text-[#0B1B2A] mb-1">Send a Proposal Brief</h3>
                   <p className="text-xs text-slate-400">Our lead spatial directors compile draft blueprints for all accepted submissions.</p>
                 </div>
+
+                {errorMessage && (
+                  <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-semibold tracking-wide flex items-center gap-3">
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
 
                 <div className="space-y-4">
                   <div>

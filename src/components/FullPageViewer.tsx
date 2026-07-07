@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { createClient } from '@/utils/supabase/client';
 import {
   ArrowLeft,
   Calendar,
@@ -44,6 +45,7 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ticketType, setTicketType] = useState('vip');
+  const [errorMessage, setErrorMessage] = useState('');
   const [formFields, setFormFields] = useState({
     name: '',
     email: '',
@@ -55,37 +57,86 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
   // Automatically scroll to top on mount
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
+    setErrorMessage('');
   }, [viewType, itemId]);
 
   // Form submission handler for inline custom actions
-  const handleInquirySubmit = (e: React.FormEvent, category: string) => {
+  const handleInquirySubmit = async (e: React.FormEvent, category: string) => {
     e.preventDefault();
+    setErrorMessage('');
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const supabase = createClient();
+      const timestamp = new Date().toISOString();
+
+      // Try inserting into Supabase
+      const { error } = await supabase.from('inquiries').insert([
+        {
+          name: formFields.name,
+          email: formFields.email,
+          company: formFields.company,
+          guests: Number(formFields.guestsCount),
+          details: formFields.notes,
+          event_type: category,
+          timestamp
+        }
+      ]);
+
+      if (error) throw error;
+
       setIsSubmitting(false);
       setSuccessMessage(`Your tailored inquiry for ${category} has been securely routed directly to our Lead Spatial Director.`);
       setFormFields({ name: '', email: '', notes: '', guestsCount: '1', company: '' });
+      
       const currentInquiries = JSON.parse(localStorage.getItem('aura_custom_inquiries') || '[]');
       localStorage.setItem('aura_custom_inquiries', JSON.stringify([
         ...currentInquiries,
-        { ...formFields, itemId, viewType, category, timestamp: new Date().toISOString() }
+        { ...formFields, itemId, viewType, category, timestamp }
       ]));
-    }, 1200);
+    } catch (err) {
+      console.error('Supabase custom inquiry submission failed:', err);
+      setIsSubmitting(false);
+      setErrorMessage('Could not connect to the intake gateway. Please verify your connection.');
+    }
   };
 
-  const handleEventRegister = (e: React.FormEvent, eventTitle: string) => {
+  const handleEventRegister = async (e: React.FormEvent, eventTitle: string) => {
     e.preventDefault();
+    setErrorMessage('');
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const supabase = createClient();
+      const timestamp = new Date().toISOString();
+
+      // Try inserting into Supabase
+      const { error } = await supabase.from('inquiries').insert([
+        {
+          name: formFields.name,
+          email: formFields.email,
+          company: formFields.company,
+          guests: Number(formFields.guestsCount),
+          details: `Ticket registration: ${ticketType.toUpperCase()}. ${formFields.notes}`,
+          event_type: `Event: ${eventTitle}`,
+          timestamp
+        }
+      ]);
+
+      if (error) throw error;
+
       setIsSubmitting(false);
       setSuccessMessage(`Congratulations! Your exclusive ${ticketType.toUpperCase()} pass request for "${eventTitle}" has been provisionally registered. Check your secure electronic inbox at ${formFields.email} for coordinates.`);
       setFormFields({ name: '', email: '', notes: '', guestsCount: '1', company: '' });
+
       const currentRegistrations = JSON.parse(localStorage.getItem('aura_event_registrations') || '[]');
       localStorage.setItem('aura_event_registrations', JSON.stringify([
         ...currentRegistrations,
-        { ...formFields, ticketType, eventId: itemId, eventTitle, timestamp: new Date().toISOString() }
+        { ...formFields, ticketType, eventId: itemId, eventTitle, timestamp }
       ]));
-    }, 1400);
+    } catch (err) {
+      console.error('Supabase event registration failed:', err);
+      setIsSubmitting(false);
+      setErrorMessage('Could not connect to the intake gateway. Please verify your connection.');
+    }
   };
 
   // Find targeted item
@@ -489,6 +540,13 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
                     </p>
                   </div>
 
+                  {errorMessage && (
+                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-semibold tracking-wide flex items-center gap-3">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
+
                   <div className="space-y-4">
                     <div>
                       <label className="text-xs font-bold text-[#0B1B2A] uppercase tracking-wider block mb-1">Your Full Name *</label>
@@ -829,6 +887,13 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
                       Remaining spaces: <span className="font-bold text-rose-500">{event.availableSeats} passes</span>. Settle credential level:
                     </p>
                   </div>
+
+                  {errorMessage && (
+                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-semibold tracking-wide flex items-center gap-3">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
 
                   {/* Selector of tiers */}
                   <div className="grid grid-cols-3 gap-2">
