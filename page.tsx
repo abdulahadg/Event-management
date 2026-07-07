@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createClient } from '@/utils/supabase/server'
 import { cookies } from 'next/headers'
 
@@ -11,7 +10,7 @@ export default async function Page() {
   return (
     <ul>
       {todos?.map((todo) => (
-        <li key={todo.id}>{todo.name}</li>
+         <li key={todo.id}>{todo.name}</li>
       ))}
     </ul>
   )

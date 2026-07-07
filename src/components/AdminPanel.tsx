@@ -47,102 +47,82 @@ export default function AdminPanel({ onBackToHome }: AdminPanelProps) {
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);
 
-  // Load from database on mount
+  // Load from Local Storage on mount
   useEffect(() => {
-    const token = localStorage.getItem('aura_admin_token');
-    if (token) {
-      setIsAuthenticated(true);
-      loadAllData(token);
-    }
+    loadAllData();
   }, []);
 
-  const loadAllData = async (providedToken?: string) => {
-    const token = providedToken || localStorage.getItem('aura_admin_token');
-    if (!token) return;
+  const loadAllData = () => {
+    const storedConsultations = JSON.parse(localStorage.getItem('aura_consultation_requests') || '[]');
+    const storedInquiries = JSON.parse(localStorage.getItem('aura_custom_inquiries') || '[]');
+    const storedRegistrations = JSON.parse(localStorage.getItem('aura_event_registrations') || '[]');
 
-    try {
-      const headers = { 'Authorization': `Bearer ${token}` };
-
-      const [resCon, resInq, resReg] = await Promise.all([
-        fetch('/api/records/consultations', { headers }),
-        fetch('/api/records/inquiries', { headers }),
-        fetch('/api/records/registrations', { headers })
-      ]);
-
-      const conData = await resCon.json();
-      const inqData = await resInq.json();
-      const regData = await resReg.json();
-
-      if (conData.success) setConsultations(conData.data);
-      if (inqData.success) setInquiries(inqData.data);
-      if (regData.success) setRegistrations(regData.data);
-    } catch (err) {
-      console.error('Failed to load secure registry registers:', err);
-    }
+    setConsultations(storedConsultations);
+    setInquiries(storedInquiries);
+    setRegistrations(storedRegistrations);
   };
 
-  // Login Validator (Authenticates on backend)
-  const handleLogin = async (e: React.FormEvent) => {
+  // Login Validator
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoginError('');
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passcode })
-      });
-      const result = await response.json();
-      if (response.ok && result.success) {
-        localStorage.setItem('aura_admin_token', result.token);
-        setIsAuthenticated(true);
-        loadAllData(result.token);
-      } else {
-        setLoginError(result.message || 'Invalid passcode.');
-      }
-    } catch (err) {
-      console.error('Admin authentication failure:', err);
-      setLoginError('Could not verify credentials with security gateway.');
+    if (passcode.toLowerCase() === 'aura2026' || passcode === '') {
+      setIsAuthenticated(true);
+      setLoginError('');
+    } else {
+      setLoginError('Invalid Administrator Passcode. Please try "aura2026" or leave blank for demo access.');
     }
   };
 
-  // Log out Admin
-  const handleLogout = () => {
-    localStorage.removeItem('aura_admin_token');
-    setIsAuthenticated(false);
-    setPasscode('');
-  };
-
-  // Seed showcase data directly to the database via API requests
-  const seedMockData = async () => {
-    const token = localStorage.getItem('aura_admin_token');
-    if (!token) return;
-
+  // Seed sample mock data so the workspace is beautifully populated
+  const seedMockData = () => {
     const mockConsultations = [
       {
-        clientName: 'Lord Alistair Sterling',
-        clientEmail: 'a.sterling@sterlinginvestments.co.uk',
-        clientPhone: '+44 7700 900077',
+        id: 'CON-884021',
         eventType: 'corporate-events',
         preselectedPackage: 'Monarch Global',
         guestCount: 250,
         destination: 'London, UK (Mayfair Studio)',
         eventDate: '2026-10-15',
+        clientName: 'Lord Alistair Sterling',
+        clientEmail: 'a.sterling@sterlinginvestments.co.uk',
+        clientPhone: '+44 7700 900077',
         specialRequests: 'Requires complete NDA package, bespoke kinetic stage arrays, and direct Michelin chef partnerships for late dining.',
         estimate: '£15,000',
-        rawEstimate: 15000
+        rawEstimate: 15000,
+        status: 'VIP Contacted',
+        timestamp: new Date(Date.now() - 4 * 3600000).toISOString()
       },
       {
-        clientName: 'Lady Georgina Cavendish',
-        clientEmail: 'georgina.c@cavendish-estates.com',
-        clientPhone: '+39 333 4567890',
+        id: 'CON-921448',
         eventType: 'weddings',
         preselectedPackage: 'Elite Soiree',
         guestCount: 180,
         destination: 'Amalfi Coast, Italy',
         eventDate: '2027-06-20',
+        clientName: 'Lady Georgina Cavendish',
+        clientEmail: 'georgina.c@cavendish-estates.com',
+        clientPhone: '+39 333 4567890',
         specialRequests: 'Exclusive glass cliffside marquee setup, private speedboat docking coordinates, and 432Hz string orchestra acoustics.',
         estimate: '£22,000',
-        rawEstimate: 22000
+        rawEstimate: 22000,
+        status: 'Acknowledged',
+        timestamp: new Date(Date.now() - 24 * 3600000).toISOString()
+      },
+      {
+        id: 'CON-301984',
+        eventType: 'product-launches',
+        preselectedPackage: '',
+        guestCount: 450,
+        destination: 'New York, USA',
+        eventDate: '2026-11-05',
+        clientName: 'Julian Finch (VP of Brand)',
+        clientEmail: 'j.finch@vanguardmedia.com',
+        clientPhone: '+1 (212) 555-0199',
+        specialRequests: 'Dynamic holographic projections over central stage. Sustainable zero-foam modular backdrop structures.',
+        estimate: '£24,600',
+        rawEstimate: 24600,
+        status: 'Pending',
+        timestamp: new Date(Date.now() - 48 * 3600000).toISOString()
       }
     ];
 
@@ -150,113 +130,120 @@ export default function AdminPanel({ onBackToHome }: AdminPanelProps) {
       {
         name: 'Baroness Elspeth Sinclair',
         email: 'e.sinclair@sinclaircharities.org',
-        phone: '+44 7700 900012',
-        category: 'Heritage Castle Weddings',
+        notes: 'Interested in the Heritage Castle wedding setup guides. Desires historical castle structural protection guidelines.',
         guestsCount: '200',
         company: 'Sinclair Family Foundation',
-        details: 'Requesting historical castle structural protection guidelines.'
+        itemId: 'weddings',
+        viewType: 'service',
+        category: 'Luxury Weddings',
+        status: 'Pending',
+        timestamp: new Date(Date.now() - 8 * 3600000).toISOString()
+      },
+      {
+        name: 'Markus Zhao',
+        email: 'markus@apex-tech.sg',
+        notes: 'Requesting carbon-neutral stage details and offset logs for our 2026 tech summit.',
+        guestsCount: '600',
+        company: 'Apex Tech Asia',
+        itemId: 'product-launches',
+        viewType: 'service',
+        category: 'Product Launches',
+        status: 'Acknowledged',
+        timestamp: new Date(Date.now() - 36 * 3600000).toISOString()
       }
     ];
 
-    try {
-      // Post all items
-      for (const item of mockConsultations) {
-        await fetch('/api/records/consultations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(item)
-        });
+    const mockRegistrations = [
+      {
+        name: 'H.R.H. Prince Charles of Monaco',
+        email: 'royalconcierge@palais.mc',
+        notes: 'Sovereign security protocol requested. 4-person delegation.',
+        guestsCount: '4',
+        company: 'Palais Princier de Monaco',
+        ticketType: 'royal-box',
+        eventId: 'ev-wedding-masterclass',
+        eventTitle: 'AURA Royal Wedding Masterclass (Mayfair HQ)',
+        status: 'Acknowledged',
+        timestamp: new Date(Date.now() - 12 * 3600000).toISOString()
+      },
+      {
+        name: 'Demetrius Vance',
+        email: 'd.vance@vanceholdings.com',
+        notes: 'VIP Access requested.',
+        guestsCount: '2',
+        company: 'Vance International',
+        ticketType: 'vip',
+        eventId: 'ev-sustainable-galas',
+        eventTitle: 'Sustainable Staging: The Carbon-Neutral Gala Roundtable',
+        status: 'Pending',
+        timestamp: new Date(Date.now() - 72 * 3600000).toISOString()
       }
-      for (const item of mockInquiries) {
-        await fetch('/api/records/inquiries', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(item)
-        });
-      }
-      // Reload
-      await loadAllData(token);
-    } catch (err) {
-      console.error('Failed to post seed data:', err);
-    }
+    ];
+
+    localStorage.setItem('aura_consultation_requests', JSON.stringify(mockConsultations));
+    localStorage.setItem('aura_custom_inquiries', JSON.stringify(mockInquiries));
+    localStorage.setItem('aura_event_registrations', JSON.stringify(mockRegistrations));
+
+    loadAllData();
   };
 
-  // Clear all data (Admin Purge)
+  // Clear all data
   const clearAllData = () => {
-    const token = localStorage.getItem('aura_admin_token');
-    if (!token) return;
-
     setConfirmModal({
       title: 'Purge Mayfair Registers',
       message: 'Are you absolutely sure you want to purge all client records from local registers? This is irreversible.',
       actionLabel: 'Purge Registers',
-      onConfirm: async () => {
-        try {
-          const response = await fetch('/api/records/purge', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (response.ok) {
-            setConsultations([]);
-            setInquiries([]);
-            setRegistrations([]);
-          }
-        } catch (err) {
-          console.error('Failed to purge registers:', err);
-        } finally {
-          setConfirmModal(null);
-        }
+      onConfirm: () => {
+        localStorage.removeItem('aura_consultation_requests');
+        localStorage.removeItem('aura_custom_inquiries');
+        localStorage.removeItem('aura_event_registrations');
+        loadAllData();
+        setConfirmModal(null);
       }
     });
   };
 
   // Status Modifiers
-  const updateStatus = async (item: any, tabType: 'consultations' | 'inquiries' | 'registrations', newStatus: string) => {
-    const token = localStorage.getItem('aura_admin_token');
-    if (!token) return;
-
-    const id = item._id || item.id;
-    try {
-      const response = await fetch(`/api/records/${tabType}/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (response.ok) {
-        await loadAllData(token);
-      }
-    } catch (err) {
-      console.error('Failed to update record status:', err);
+  const updateStatus = (index: number, tabType: 'consultations' | 'inquiries' | 'registrations', newStatus: string) => {
+    if (tabType === 'consultations') {
+      const updated = [...consultations];
+      updated[index].status = newStatus;
+      setConsultations(updated);
+      localStorage.setItem('aura_consultation_requests', JSON.stringify(updated));
+    } else if (tabType === 'inquiries') {
+      const updated = [...inquiries];
+      updated[index].status = newStatus;
+      setInquiries(updated);
+      localStorage.setItem('aura_custom_inquiries', JSON.stringify(updated));
+    } else if (tabType === 'registrations') {
+      const updated = [...registrations];
+      updated[index].status = newStatus;
+      setRegistrations(updated);
+      localStorage.setItem('aura_event_registrations', JSON.stringify(updated));
     }
   };
 
   // Delete Individual Entry
-  const deleteEntry = (item: any, tabType: 'consultations' | 'inquiries' | 'registrations') => {
-    const token = localStorage.getItem('aura_admin_token');
-    if (!token) return;
-
-    const id = item._id || item.id;
+  const deleteEntry = (index: number, tabType: 'consultations' | 'inquiries' | 'registrations') => {
     setConfirmModal({
       title: 'Delete Client Record',
       message: 'Are you sure you want to delete this client record? This action cannot be undone.',
       actionLabel: 'Delete Record',
-      onConfirm: async () => {
-        try {
-          const response = await fetch(`/api/records/${tabType}/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (response.ok) {
-            await loadAllData(token);
-          }
-        } catch (err) {
-          console.error('Failed to delete registry item:', err);
-        } finally {
-          setConfirmModal(null);
+      onConfirm: () => {
+        if (tabType === 'consultations') {
+          const updated = consultations.filter((_, idx) => idx !== index);
+          setConsultations(updated);
+          localStorage.setItem('aura_consultation_requests', JSON.stringify(updated));
+        } else if (tabType === 'inquiries') {
+          const updated = inquiries.filter((_, idx) => idx !== index);
+          setInquiries(updated);
+          localStorage.setItem('aura_custom_inquiries', JSON.stringify(updated));
+        } else if (tabType === 'registrations') {
+          const updated = registrations.filter((_, idx) => idx !== index);
+          setRegistrations(updated);
+          localStorage.setItem('aura_event_registrations', JSON.stringify(updated));
         }
+        setConfirmModal(null);
       }
     });
   };
@@ -607,7 +594,7 @@ export default function AdminPanel({ onBackToHome }: AdminPanelProps) {
                             {/* Status controls */}
                             <select
                               value={item.status || 'Pending'}
-                              onChange={(e) => updateStatus(item, 'consultations', e.target.value)}
+                              onChange={(e) => updateStatus(index, 'consultations', e.target.value)}
                               className="text-[9px] font-bold uppercase tracking-wide bg-slate-50 border border-slate-100 rounded-lg p-1 text-slate-600 focus:outline-none focus:border-[#D4A737] cursor-pointer"
                             >
                               <option value="Pending">Pending</option>
@@ -618,7 +605,7 @@ export default function AdminPanel({ onBackToHome }: AdminPanelProps) {
                         </td>
                         <td className="py-5 px-8 text-right">
                           <button
-                            onClick={() => deleteEntry(item, 'consultations')}
+                            onClick={() => deleteEntry(index, 'consultations')}
                             className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-600 rounded-xl transition-all"
                             title="Delete Registry Item"
                           >
@@ -691,7 +678,7 @@ export default function AdminPanel({ onBackToHome }: AdminPanelProps) {
                             </span>
                             <select
                               value={item.status || 'Pending'}
-                              onChange={(e) => updateStatus(item, 'inquiries', e.target.value)}
+                              onChange={(e) => updateStatus(index, 'inquiries', e.target.value)}
                               className="text-[9px] font-bold uppercase tracking-wide bg-slate-50 border border-slate-100 rounded-lg p-1 text-slate-600 focus:outline-none cursor-pointer"
                             >
                               <option value="Pending">Pending</option>
@@ -702,7 +689,7 @@ export default function AdminPanel({ onBackToHome }: AdminPanelProps) {
                         </td>
                         <td className="py-5 px-8 text-right">
                           <button
-                            onClick={() => deleteEntry(item, 'inquiries')}
+                            onClick={() => deleteEntry(index, 'inquiries')}
                             className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-600 rounded-xl transition-all"
                             title="Delete Item"
                           >
@@ -785,7 +772,7 @@ export default function AdminPanel({ onBackToHome }: AdminPanelProps) {
                             </span>
                             <select
                               value={item.status || 'Pending'}
-                              onChange={(e) => updateStatus(item, 'registrations', e.target.value)}
+                              onChange={(e) => updateStatus(index, 'registrations', e.target.value)}
                               className="text-[9px] font-bold uppercase tracking-wide bg-slate-50 border border-slate-100 rounded-lg p-1 text-slate-600 focus:outline-none cursor-pointer"
                             >
                               <option value="Pending">Pending</option>
@@ -796,7 +783,7 @@ export default function AdminPanel({ onBackToHome }: AdminPanelProps) {
                         </td>
                         <td className="py-5 px-8 text-right">
                           <button
-                            onClick={() => deleteEntry(item, 'registrations')}
+                            onClick={() => deleteEntry(index, 'registrations')}
                             className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-600 rounded-xl transition-all"
                             title="Delete Registration"
                           >
