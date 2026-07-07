@@ -13,6 +13,8 @@ export default function Contact() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [errorMessage, setErrorMessage] = useState('');
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
@@ -20,15 +22,28 @@ export default function Contact() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
     setIsSubmitting(true);
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/records/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setIsSubmitted(true);
+      } else {
+        setErrorMessage(result.message || result.errors?.[0]?.msg || 'Inquiry registration failed.');
+      }
+    } catch (err) {
+      console.error('Inquiry submit error:', err);
+      setErrorMessage('Could not connect to the intake gateway. Please verify your connection.');
+    } finally {
       setIsSubmitting(false);
-      setIsSubmitted(true);
-      const inquiries = JSON.parse(localStorage.getItem('aura_general_inquiries') || '[]');
-      localStorage.setItem('aura_general_inquiries', JSON.stringify([...inquiries, { ...formData, timestamp: new Date().toISOString() }]));
-    }, 1200);
+    }
   };
 
   return (
@@ -232,6 +247,13 @@ export default function Contact() {
                     />
                   </div>
                 </div>
+
+                {errorMessage && (
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-semibold tracking-wide flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
 
                 <button
                   type="submit"

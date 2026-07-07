@@ -112,7 +112,7 @@ export default function ConsultationPage({
     if (step > 1) setStep(step - 1);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName || !clientEmail || !clientPhone) {
       setErrorMessage('Please fill out all required contact fields.');
@@ -120,12 +120,8 @@ export default function ConsultationPage({
     }
     setErrorMessage('');
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSubmitted(true);
-      
-      const inquiry = {
-        id: 'CON-' + Math.floor(100000 + Math.random() * 900000),
+    try {
+      const payload = {
         eventType,
         preselectedPackage,
         guestCount,
@@ -136,14 +132,27 @@ export default function ConsultationPage({
         clientPhone,
         specialRequests,
         estimate: estimate.total,
-        rawEstimate: estimate.rawTotal,
-        status: 'Pending',
-        timestamp: new Date().toISOString()
+        rawEstimate: estimate.rawTotal
       };
-      
-      const existing = JSON.parse(localStorage.getItem('aura_consultation_requests') || '[]');
-      localStorage.setItem('aura_consultation_requests', JSON.stringify([...existing, inquiry]));
-    }, 1200);
+
+      const response = await fetch('/api/records/consultations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setIsSubmitted(true);
+      } else {
+        setErrorMessage(result.message || result.errors?.[0]?.msg || 'Consultation intake booking failed.');
+      }
+    } catch (err) {
+      console.error('Consultation submit error:', err);
+      setErrorMessage('Could not connect to the secure intake gateway. Please verify your connection.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleReset = () => {

@@ -42,6 +42,7 @@ interface FullPageViewerProps {
 
 export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenConsultation }: FullPageViewerProps) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [ticketType, setTicketType] = useState('vip');
   const [formFields, setFormFields] = useState({
@@ -58,34 +59,73 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
   }, [viewType, itemId]);
 
   // Form submission handler for inline custom actions
-  const handleInquirySubmit = (e: React.FormEvent, category: string) => {
+  const handleInquirySubmit = async (e: React.FormEvent, category: string) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const payload = {
+        name: formFields.name,
+        email: formFields.email,
+        phone: '', // Optional
+        category,
+        guestsCount: formFields.guestsCount,
+        details: `Company: ${formFields.company || 'N/A'}. Notes: ${formFields.notes || 'None'}`
+      };
+      const response = await fetch('/api/records/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setSuccessMessage(`Your tailored inquiry for ${category} has been securely routed directly to our Lead Spatial Director.`);
+        setFormFields({ name: '', email: '', notes: '', guestsCount: '1', company: '' });
+      } else {
+        setErrorMessage(result.message || 'Custom inquiry submission failed.');
+      }
+    } catch (err) {
+      console.error('Custom inquiry submit error:', err);
+      setErrorMessage('Could not connect to the secure gate. Please verify connection.');
+    } finally {
       setIsSubmitting(false);
-      setSuccessMessage(`Your tailored inquiry for ${category} has been securely routed directly to our Lead Spatial Director.`);
-      setFormFields({ name: '', email: '', notes: '', guestsCount: '1', company: '' });
-      const currentInquiries = JSON.parse(localStorage.getItem('aura_custom_inquiries') || '[]');
-      localStorage.setItem('aura_custom_inquiries', JSON.stringify([
-        ...currentInquiries,
-        { ...formFields, itemId, viewType, category, timestamp: new Date().toISOString() }
-      ]));
-    }, 1200);
+    }
   };
 
-  const handleEventRegister = (e: React.FormEvent, eventTitle: string) => {
+  const handleEventRegister = async (e: React.FormEvent, eventTitle: string) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    try {
+      const payload = {
+        name: formFields.name,
+        email: formFields.email,
+        eventId: itemId,
+        eventTitle,
+        ticketType,
+        guestsCount: formFields.guestsCount,
+        notes: `Company: ${formFields.company || 'N/A'}. Notes: ${formFields.notes || 'None'}`
+      };
+      const response = await fetch('/api/records/registrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        setSuccessMessage(`Congratulations! Your exclusive ${ticketType.toUpperCase()} pass request for "${eventTitle}" has been registered. Check your secure electronic inbox at ${formFields.email} for coordinates.`);
+        setFormFields({ name: '', email: '', notes: '', guestsCount: '1', company: '' });
+      } else {
+        setErrorMessage(result.message || 'Ticket registration failed.');
+      }
+    } catch (err) {
+      console.error('Event ticket registration error:', err);
+      setErrorMessage('Could not connect to registration server. Please verify connection.');
+    } finally {
       setIsSubmitting(false);
-      setSuccessMessage(`Congratulations! Your exclusive ${ticketType.toUpperCase()} pass request for "${eventTitle}" has been provisionally registered. Check your secure electronic inbox at ${formFields.email} for coordinates.`);
-      setFormFields({ name: '', email: '', notes: '', guestsCount: '1', company: '' });
-      const currentRegistrations = JSON.parse(localStorage.getItem('aura_event_registrations') || '[]');
-      localStorage.setItem('aura_event_registrations', JSON.stringify([
-        ...currentRegistrations,
-        { ...formFields, ticketType, eventId: itemId, eventTitle, timestamp: new Date().toISOString() }
-      ]));
-    }, 1400);
+    }
   };
 
   // Find targeted item
@@ -550,6 +590,12 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
                     </div>
                   </div>
 
+                  {errorMessage && (
+                    <div className="p-3 rounded-lg bg-rose-50 border border-rose-100 text-rose-600 text-[11px] font-semibold tracking-wide">
+                      {errorMessage}
+                    </div>
+                  )}
+
                   <button
                     type="submit"
                     disabled={isSubmitting}
@@ -889,6 +935,12 @@ export default function FullPageViewer({ viewType, itemId, onBackToHome, onOpenC
                       />
                     </div>
                   </div>
+
+                  {errorMessage && (
+                    <div className="p-3 rounded-lg bg-rose-50 border border-rose-100 text-rose-600 text-[11px] font-semibold tracking-wide">
+                      {errorMessage}
+                    </div>
+                  )}
 
                   <button
                     type="submit"
